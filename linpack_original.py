@@ -6,6 +6,9 @@
 #
 # Apr 2020 updated to use a.item() instead of np.asscalar(a)
 
+# NOTE: I (Corey Adams) did not write this code, it is available here:
+# https://www.mjr19.org.uk/linpack/source.html
+
 from numpy import matrix, array, linalg, random, amax
 from time import time
 import sys
