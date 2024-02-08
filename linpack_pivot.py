@@ -35,8 +35,10 @@ def compute_B(A):
 def solve(A, B):
     return numpy.linalg.solve(A, B)
 
+@jit
 def residual(A, B, X):
     return numpy.matmul(A,X) - B
+
 
 def pivot(_A, _k, _kp):
     '''
@@ -65,31 +67,20 @@ def form_gauss_vector(_A, _k):
     # Start with the values at every point in the target column
     gauss_vector = _A[:,_k] 
     target_row = _A[_k,:]
-    # print("gv init: ", gauss_vector)
-    # print("target_row: ", target_row)
 
     a_nn = _A[_k,_k]
-    # print("a_nn", a_nn)
+    # Scale the gauss vector 
     gauss_vector = gauss_vector / a_nn
-    # print("gv scaled: ", gauss_vector)
 
     # This should be the biggest value at or below the diagonal 
     # in this column, from the pivoting:
 
     # Set to 0 the entries above and including the diagonal:
     mask = numpy.arange(gauss_vector.shape[0]) > _k
-    # print("mask: ", mask)
     gauss_vector = numpy.where(mask,  gauss_vector, 0.0)
 
-    # Scale the gauss vector 
-    # gauss_vector = _A[:,_k] / a_nn
-    # print("gv_final: ", gauss_vector)
     # Update the matrix by subtracting off the gauss vector.
-    # use shaping and broadcasting to get the whole thing:
-
-    # print("gauss_vector: ", gauss_vector)
-
-    # print(numpy.outer(gauss_vector, target_row))
+    # use outer product shaping to get the whole thing:
 
     _A = _A - numpy.outer(gauss_vector, target_row)
 
@@ -119,9 +110,7 @@ def lu_iteration(carry, _k):
 
     # Pick out the current matrix from the carry object:
     _A, _L = carry[0], carry[1]
-    # _A = carry[0]
 
-    # print("INitial _A",  _A)
     # Current pivots
     pivots = carry[2]
 
@@ -131,7 +120,6 @@ def lu_iteration(carry, _k):
 
     # Only look at the area below the diagonal:
     mask = numpy.arange(full_region.shape[0]) >= _k
-    # print("mask: ", mask)
     full_region = numpy.where(mask, full_region, 0.0)
 
     # print("fulll_region: ", full_region)
@@ -153,22 +141,23 @@ def lu_iteration(carry, _k):
     
     # get the update and form the gauss vectors if needed:
     _A, gauss_vector = form_gauss_vector(_A, _k)
-    # print("gauss_vector", gauss_vector)
+
     # Update _L:
     _L = _L.at[:,_k].set(gauss_vector)
+    # Need to put ones on the diagonal of L:
     _L = _L.at[_k,_k].set(1.0)
-    # print("Updated _L", _L)
 
     return (_A, _L, pivots), None
 
-@profile
+lu_iteration = jit(lu_iteration, donate_argnums=0)
+
+
+@jit
 def LU_partial_pivoting(A):
     """LU_partial_pivoting(A, overwrite_a=False)
 
     Factor a matrix A into it's LU decomposition with partial pivoting
     """
-
-
 
 
     N = A.shape[0]
@@ -183,20 +172,11 @@ def LU_partial_pivoting(A):
         perms
     )
 
-    # (tA, tL, tp), _ = lu_iteration(carry, 0)
+    carry, _ = lax.scan(lu_iteration, carry, perms)
 
-
-    # lu_iteration = jit(lu_iteration, donate_argnums=0)
-
-    # with jax.disable_jit():
-    # carry, _ = lax.scan(lu_iteration, carry, perms)
-    for k in range(N):
-        carry, _ = lu_iteration(carry, k)
     U = carry[0]
     L = carry[1]
 
-    # Need to put ones on the diagonal of L:
-    # L = jit(L.at[numpy.diag_indices(N)].add(1.0))
 
     # Create the permutation matrix:
     P = numpy.zeros_like(A)
@@ -204,7 +184,6 @@ def LU_partial_pivoting(A):
 
     return P, L, U
 
-@profile
 def main(args):
 
     # Create a random number seed:
@@ -227,7 +206,7 @@ def main(args):
     P, L, U = scipy.linalg.lu(A, permute_l=False)
     U.block_until_ready()
     t = time() - t
-    print(f"Scipy time: {t:.3f}")
+    print(f"Scipy time: {t:.5f}")
 
     # print("Scipy P: \n", P)
     # print("Scipy L: \n", L)
@@ -239,7 +218,7 @@ def main(args):
     P, L, U = LU_partial_pivoting(A)
     U.block_until_ready()
     t = time() - t
-    print(f"Custom time: {t:.3f}")
+    print(f"Custom time: {t:.5f}")
 
 
 if __name__ == "__main__":
