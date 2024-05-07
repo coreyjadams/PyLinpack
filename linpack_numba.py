@@ -158,7 +158,8 @@ def form_gauss_vector(_A, _k):
     # Skip the first row:
     for idx in range(_k+1, N):
         for idy in numba.prange(_k, N):
-            _A[idx, idy] = _A[idx, idy] - outer[idx  - _k, idy - _k]
+            # _A[idx, idy] = _A[idx, idy] - outer[idx  - _k, idy - _k]
+            _A[idx, idy] = _A[idx, idy] - gauss_vector[idx - _k]*target_row[idy - _k]
 
     return gauss_vector
 
