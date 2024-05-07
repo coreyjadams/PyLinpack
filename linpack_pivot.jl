@@ -93,27 +93,17 @@ function form_gauss_vector!(_A::Matrix{T}, _k::Integer)::Vector{T} where {T<:Rea
     # gauss_vector = (gauss_vector / a_nn) # Copy?
 
     # This should be the biggest value at or below the diagonal 
-    # in this column, from the pivoting:
+    # in this column, from the pivoting.
 
     # Update the matrix by subtracting off the gauss vector.
-    # use shaping and broadcasting to get the whole thing:
-
-    # print(numpy.outer(gauss_vector, target_row))
-
-    # Now, subtract off the low right corner from the outer product:
-
-
-    # This is how to form the outer product vector:
-    # outer1 = gauss_vector .* target_row'
-
+    # subtract off the low right corner from the outer product:
 
     # Skip the first row:
 
     @inbounds for idy in _k:N
         t_y = idy - _k + 1
         @inbounds for idx in _k+1:N
-            # Using outer product vector:
-            # _A[idx, idy] = _A[idx, idy] - outer[idx  - _k + 1, idy - _k + 1]
+            # This is the performance critical line:
             _A[idx, idy] -= gauss_vector[idx - _k + 1] * target_row[t_y]
         end
     end
