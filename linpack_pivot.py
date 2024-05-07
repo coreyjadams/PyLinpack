@@ -149,7 +149,7 @@ def lu_iteration(carry, _k):
 
     return (_A, _L, pivots), None
 
-lu_iteration = jit(lu_iteration, donate_argnums=0)
+lu_iteration = jit(lu_iteration)
 
 
 @jit
@@ -172,7 +172,9 @@ def LU_partial_pivoting(A):
         perms
     )
 
-    carry, _ = lax.scan(lu_iteration, carry, perms)
+    for k in range(N):
+        carry, _ = lu_iteration(carry, k)
+    # carry, _ = lax.scan(lu_iteration, carry, perms)
 
     U = carry[0]
     L = carry[1]
@@ -201,11 +203,13 @@ def main(args):
     print("B.shape: ", B.shape)
 
     P, L, U = scipy.linalg.lu(A, permute_l=False)
+    jax.profiler.start_trace("./prof/scipy-lu/")
     t = time()
     # Convert to matrices
     P, L, U = scipy.linalg.lu(A, permute_l=False)
     U.block_until_ready()
     t = time() - t
+    jax.profiler.stop_trace()
     print(f"Scipy time: {t:.5f}")
 
     # print("Scipy P: \n", P)
@@ -214,10 +218,12 @@ def main(args):
     # print(matmul(matmul(P, L),U) - A)
     P, L, U = LU_partial_pivoting(A)
 
+    jax.profiler.start_trace("./prof/custom-lu/")
     t = time()
     P, L, U = LU_partial_pivoting(A)
     U.block_until_ready()
     t = time() - t
+    jax.profiler.stop_trace()
     print(f"Custom time: {t:.5f}")
 
 

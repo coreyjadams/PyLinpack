@@ -174,7 +174,7 @@ scipy_A = A.copy()
 # print(A_update.shape)
 # print(A_update[0])
 
-@numba.njit
+# @numba.njit
 def LU_partial_pivoting(_A):
     """LU_partial_pivoting(_A, overwrite_a=False)
 
@@ -208,7 +208,6 @@ def LU_partial_pivoting(_A):
         # First, decide if we are going to pivot:
         # Looking only in column k, from k down along rows
         column = _A[k:,k]
-
         max_index = numpy.argmax(numpy.abs(column)) # Take the whole column from k down
         max_index = max_index + k
         if max_index != k:
