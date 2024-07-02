@@ -2,6 +2,8 @@
 
 # LINPACK on a single device in JULIA
 using Profile
+using LoopVectorization
+using Base.Threads
 
 import Random
 Random.seed!(1234)
@@ -100,9 +102,11 @@ function form_gauss_vector!(_A::Matrix{T}, _k::Integer)::Vector{T} where {T<:Rea
 
     # Skip the first row:
 
+    # Threads.@threads for idy in _k:N
     @inbounds for idy in _k:N
         t_y = idy - _k + 1
-        @inbounds for idx in _k+1:N
+        # @inbounds @simd  for idx in _k+1:N
+        @turbo for idx in _k+1:N
             # This is the performance critical line:
             _A[idx, idy] -= gauss_vector[idx - _k + 1] * target_row[t_y]
         end
@@ -164,7 +168,10 @@ function LU_partial_pivoting(_A::AbstractArray)
         # Again, an inplace update:
         gauss_vector = form_gauss_vector!(_A, k)
         # Write the gauss vector into L:
-        L[k:N, k] = gauss_vector
+        @inbounds for i in k:N
+            L[i,k] = gauss_vector[i-k+1]
+        end
+            # L[k:N, k] = gauss_vector
 
     end
 
@@ -291,6 +298,7 @@ function main()
     # Profile.print()
     # @btime form_gauss_vector!($Mc, 50)
 
+    Mc = copy(M)
     b = @timed X = solve(Mc, B)
     t = b.time
 
